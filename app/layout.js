@@ -1,3 +1,4 @@
+import './globals.css'
 export const metadata = {
   title: 'Delvyn Labs',
   description: 'Charan\'s Personal Workspace',

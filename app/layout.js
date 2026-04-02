@@ -1,13 +1,9 @@
-import './globals.css'
-export const metadata = {
-  title: 'Delvyn Labs',
-  description: 'Charan\'s Personal Workspace',
-}
+import './globals.css'; // MUST BE AT THE TOP
 
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body className="bg-[#0a0a0a]">{children}</body>
     </html>
-  )
+  );
 }

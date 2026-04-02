@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Habit Tracker — Delvyn Labs</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { background: #0f0f0f; color: #e8e8e8; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; min-height: 100vh; padding: 2rem 1rem; }
+        .container { max-width: 480px; margin: 0 auto; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; }
+        .header h1 { font-size: 20px; font-weight: 500; }
+        .date { font-size: 13px; color: #888; }
+        .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 1.5rem; }
+        .stat { background: #1a1a1a; border-radius: 12px; padding: 1rem; text-align: center; }
+        .stat-num { font-size: 24px; font-weight: 500; color: #e8e8e8; }
+        .stat-label { font-size: 11px; color: #666; margin-top: 4px; }
+        .section-title { font-size: 11px; font-weight: 500; color: #666; margin-bottom: 10px; letter-spacing: 0.08em; text-transform: uppercase; }
+        .habits { display: flex; flex-direction: column; gap: 8px; margin-bottom: 1.5rem; }
+        .habit-row { display: flex; align-items: center; gap: 12px; background: #1a1a1a; border: 0.5px solid #2a2a2a; border-radius: 12px; padding: 14px 16px; cursor: pointer; transition: border-color 0.15s; }
+        .habit-row:hover { border-color: #3a3a3a; }
+        .habit-row.done { border-color: #1D9E75; background: #0d2b22; }
+        .check { width: 22px; height: 22px; border-radius: 50%; border: 1.5px solid #444; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all 0.15s; }
+        .habit-row.done .check { background: #1D9E75; border-color: #1D9E75; }
+        .checkmark { display: none; }
+        .habit-row.done .checkmark { display: block; }
+        .habit-name { font-size: 15px; color: #e8e8e8; flex: 1; }
+        .habit-row.done .habit-name { color: #5DCAA5; }
+        .habit-streak { font-size: 12px; color: #555; margin-top: 2px; }
+        .habit-row.done .habit-streak { color: #1D9E75; }
+        .delete-btn { background: none; border: none; cursor: pointer; color: #444; font-size: 18px; padding: 4px 6px; border-radius: 4px; opacity: 0; transition: opacity 0.15s; }
+        .habit-row:hover .delete-btn { opacity: 1; }
+        .add-section { display: flex; gap: 8px; margin-bottom: 1.5rem; }
+        .add-section input { flex: 1; padding: 11px 14px; border-radius: 10px; border: 0.5px solid #2a2a2a; background: #1a1a1a; color: #e8e8e8; font-size: 14px; outline: none; }
+        .add-section input:focus { border-color: #1D9E75; }
+        .add-btn { padding: 11px 18px; background: #1D9E75; color: white; border: none; border-radius: 10px; font-size: 14px; cursor: pointer; font-weight: 500; }
+        .add-btn:hover { background: #0F6E56; }
+        .chart-section { background: #1a1a1a; border: 0.5px solid #2a2a2a; border-radius: 12px; padding: 16px; }
+        .chart-title { font-size: 12px; color: #666; margin-bottom: 16px; }
+        .bars { display: flex; align-items: flex-end; gap: 6px; height: 80px; }
+        .bar-wrap { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; height: 100%; justify-content: flex-end; }
+        .bar { width: 100%; background: #1D9E75; border-radius: 3px 3px 0 0; min-height: 4px; }
+        .bar.empty { background: #2a2a2a; }
+        .bar-day { font-size: 10px; color: #555; }
+        .bar-pct { font-size: 10px; color: #666; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Habit tracker</h1>
+            <span class="date" id="today-date"></span>
+        </div>
+        <div class="stats">
+            <div class="stat"><div class="stat-num" id="done-count">0</div><div class="stat-label">Done today</div></div>
+            <div class="stat"><div class="stat-num" id="total-count">0</div><div class="stat-label">Total habits</div></div>
+            <div class="stat"><div class="stat-num" id="best-streak">0</div><div class="stat-label">Best streak</div></div>
+        </div>
+        <div class="section-title">Today</div>
+        <div class="habits" id="habits-list"></div>
+        <div class="add-section">
+            <input type="text" id="new-habit" placeholder="Add a new habit..." maxlength="40" />
+            <button class="add-btn" onclick="addHabit()">Add</button>
+        </div>
+        <div class="chart-section">
+            <div class="chart-title">Last 7 days completion</div>
+            <div class="bars" id="bars"></div>
+        </div>
+    </div>
+    <script>
+        const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+        let habits = JSON.parse(localStorage.getItem('habits') || '[{"id":1,"name":"Morning workout","streak":0,"done":false},{"id":2,"name":"Read for 30 mins","streak":0,"done":false}]');
+        let weekData = JSON.parse(localStorage.getItem('weekData') || '[0,0,0,0,0,0,0]');
+        let nextId = habits.length ? Math.max(...habits.map(h => h.id)) + 1 : 1;
+        const today = new Date();
+        document.getElementById('today-date').textContent = today.toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' });
+
+        function save() {
+            localStorage.setItem('habits', JSON.stringify(habits));
+            localStorage.setItem('weekData', JSON.stringify(weekData));
+        }
+
+        function render() {
+            const list = document.getElementById('habits-list');
+            list.innerHTML = '';
+            habits.forEach(h => {
+                const row = document.createElement('div');
+                row.className = 'habit-row' + (h.done ? ' done' : '');
+                row.innerHTML = `
+                    <div class="check">
+                        <svg class="checkmark" width="10" height="10" viewBox="0 0 10 10"><polyline points="1.5,5 4,7.5 8.5,2.5" stroke="white" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </div>
+                    <div style="flex:1">
+                        <div class="habit-name">${h.name}</div>
+                        <div class="habit-streak">${h.streak > 0 ? h.streak + ' day streak' : 'No streak yet'}</div>
+                    </div>
+                    <button class="delete-btn" onclick="deleteHabit(${h.id}, event)">×</button>
+                `;
+                row.addEventListener('click', () => toggleHabit(h.id));
+                list.appendChild(row);
+            });
+            const done = habits.filter(h => h.done).length;
+            document.getElementById('done-count').textContent = done;
+            document.getElementById('total-count').textContent = habits.length;
+            const best = habits.length ? Math.max(...habits.map(h => h.streak)) : 0;
+            document.getElementById('best-streak').textContent = best;
+            renderBars(done);
+        }
+
+        function renderBars(todayDone) {
+            const pct = habits.length > 0 ? Math.round((todayDone / habits.length) * 100) : 0;
+            weekData[6] = pct;
+            const bars = document.getElementById('bars');
+            bars.innerHTML = '';
+            const maxVal = Math.max(...weekData, 1);
+            weekData.forEach((val, i) => {
+                const d = new Date(today);
+                d.setDate(today.getDate() - (6 - i));
+                const label = days[d.getDay()];
+                const wrap = document.createElement('div');
+                wrap.className = 'bar-wrap';
+                const heightPx = Math.round((val / maxVal) * 80);
+                wrap.innerHTML = `
+                    <div class="bar-pct">${val > 0 ? val + '%' : ''}</div>
+                    <div class="bar ${val === 0 ? 'empty' : ''}" style="height:${Math.max(heightPx, 4)}px;"></div>
+                    <div class="bar-day">${label}</div>
+                `;
+                bars.appendChild(wrap);
+            });
+        }
+
+        function toggleHabit(id) {
+            const h = habits.find(h => h.id === id);
+            if (!h) return;
+            h.done = !h.done;
+            h.streak = h.done ? h.streak + 1 : Math.max(0, h.streak - 1);
+            save();
+            render();
+        }
+
+        function deleteHabit(id, e) {
+            e.stopPropagation();
+            habits = habits.filter(h => h.id !== id);
+            save();
+            render();
+        }
+
+        function addHabit() {
+            const input = document.getElementById('new-habit');
+            const name = input.value.trim();
+            if (!name) return;
+            habits.push({ id: nextId++, name, streak: 0, done: false });
+            input.value = '';
+            save();
+            render();
+        }
+
+        document.getElementById('new-habit').addEventListener('keydown', e => {
+            if (e.key === 'Enter') addHabit();
+        });
+
+        render();
+    </script>
+</body>
+</html>

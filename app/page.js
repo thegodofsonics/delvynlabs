@@ -11,85 +11,69 @@ import {
   Github, 
   Youtube, 
   MessageSquare,
-  Triangle 
+  Triangle,
+  Loader2
 } from 'lucide-react';
+import Link from 'next/link';
+import { supabase } from '../lib/supabase';
 
 const Dashboard = () => {
-  // --- 1. Live Time & Greeting Logic ---
   const [time, setTime] = useState(new Date());
-  const [weather, setWeather] = useState({ temp: "--", condition: "BENGALURU" });
+  const [weather, setWeather] = useState({ temp: "24", condition: "BENGALURU" });
+  const [habitStats, setHabitStats] = useState({ percent: 0, done: 0, total: 0, loading: true });
+  const [timeLeft, setTimeLeft] = useState(25 * 60);
+  const [isActive, setIsActive] = useState(false);
+  const [note, setNote] = useState("");
 
+  // 1. Live Clock & Weather
   useEffect(() => {
     const timer = setInterval(() => setTime(new Date()), 1000);
     
-    // Fetch real weather for Bengaluru
     fetch("https://api.open-meteo.com/v1/forecast?latitude=12.9716&longitude=77.5946&current_weather=true")
       .then(res => res.json())
-      .then(data => {
-        setWeather({
-          temp: Math.round(data.current_weather.temperature),
-          condition: "BENGALURU"
-        });
-      })
-      .catch(() => setWeather({ temp: "24", condition: "BENGALURU" }));
+      .then(data => setWeather({ temp: Math.round(data.current_weather.temperature), condition: "BENGALURU" }))
+      .catch(() => {});
 
     return () => clearInterval(timer);
   }, []);
 
-  const hours = time.getHours();
-  const greeting = hours < 12 ? "Good morning" : hours < 18 ? "Good afternoon" : "Good evening";
-  const timeString = time.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
-  const dateString = time.toLocaleDateString('en-IN', { weekday: 'short', day: '2-digit', month: 'short' });
-
-  // --- 2. Shared Habit Logic (Syncing with /habits) ---
-  const [habitStats, setHabitStats] = useState({ percent: 0, done: 0, total: 0 });
-
-  const updateHabits = () => {
-    const saved = localStorage.getItem('habits');
-    if (saved) {
-      const list = JSON.parse(saved);
-      const done = list.filter(h => h.done).length;
-      const total = list.length;
+  // 2. FETCH CLOUD HABITS (The "Real" Progress)
+  const fetchCloudStats = async () => {
+    const { data, error } = await supabase.from('habits').select('*');
+    if (!error && data) {
+      const done = data.filter(h => h.is_done).length;
+      const total = data.length;
       const percent = total > 0 ? Math.round((done / total) * 100) : 0;
-      setHabitStats({ percent, done, total });
+      setHabitStats({ percent, done, total, loading: false });
     }
   };
 
   useEffect(() => {
-    updateHabits();
-    // Listen for changes from the habits page
-    window.addEventListener('storage', updateHabits);
-    return () => window.removeEventListener('storage', updateHabits);
+    fetchCloudStats();
+    // Auto-refresh stats every 30 seconds or when window is focused
+    const interval = setInterval(fetchCloudStats, 30000);
+    window.addEventListener('focus', fetchCloudStats);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', fetchCloudStats);
+    };
   }, []);
 
-  // --- 3. Study Clock Logic ---
-  const [timeLeft, setTimeLeft] = useState(25 * 60);
-  const [isActive, setIsActive] = useState(false);
-
+  // 3. Timer Logic
   useEffect(() => {
     let interval = null;
     if (isActive && timeLeft > 0) {
-      interval = setInterval(() => {
-        setTimeLeft((prev) => prev - 1);
-      }, 1000);
+      interval = setInterval(() => setTimeLeft((prev) => prev - 1), 1000);
     } else if (timeLeft === 0) {
       setIsActive(false);
-      alert("Time's up! Take a break.");
     }
     return () => clearInterval(interval);
   }, [isActive, timeLeft]);
 
-  const formatTime = (seconds) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-  };
-
-  // --- 4. Smart Scratchpad Logic ---
-  const [note, setNote] = useState("");
+  // 4. Scratchpad Persistence
   useEffect(() => {
-    const savedNote = localStorage.getItem('delvyn-note');
-    if (savedNote) setNote(savedNote);
+    const saved = localStorage.getItem('delvyn-note');
+    if (saved) setNote(saved);
   }, []);
 
   const handleNoteChange = (e) => {
@@ -97,27 +81,30 @@ const Dashboard = () => {
     localStorage.setItem('delvyn-note', e.target.value);
   };
 
-  // SVG Progress Math
-  const radius = 58;
+  // Formatting
+  const timeString = time.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
+  const dateString = time.toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  const formatTimer = (s) => `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, '0')}`;
+
+  // Progress Circle Math
+  const radius = 55;
   const circumference = 2 * Math.PI * radius;
   const offset = circumference - (habitStats.percent / 100) * circumference;
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-gray-100 p-6 md:p-12 font-sans">
+    <div className="min-h-screen bg-[#0a0a0a] text-gray-100 p-6 md:p-12 font-sans selection:bg-emerald-500/30">
       
-      {/* HEADER SECTION */}
-      <header className="mb-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      {/* HEADER: DATE & GREETING */}
+      <header className="mb-12 flex flex-col md:flex-row justify-between items-start md:items-end gap-6 border-b border-gray-900 pb-8">
         <div>
-          <h1 className="text-2xl font-bold tracking-widest text-gray-400 mb-2">DELVYN LABS</h1>
-          <h2 className="text-4xl font-semibold capitalize">Hi Charan, {greeting}.</h2>
-          <div className="flex items-center gap-4 mt-2 text-sm text-gray-500 font-mono">
-            <span className="uppercase">{dateString}</span>
-            <span>|</span>
-            <span>{timeString}</span>
-            <span>|</span>
-            <span className="flex items-center gap-1 text-emerald-500/80">
-              <CloudSun size={14} /> {weather.condition} {weather.temp}°C
-            </span>
+          <p className="text-emerald-500 font-mono text-xs tracking-[0.3em] uppercase mb-2">System Online // Delvyn Labs</p>
+          <h1 className="text-4xl font-bold tracking-tight mb-1">Hi Charan.</h1>
+          <p className="text-gray-500 font-medium">{dateString}</p>
+        </div>
+        <div className="text-right flex flex-col items-end">
+          <div className="text-3xl font-light tracking-widest text-white tabular-nums">{timeString}</div>
+          <div className="flex items-center gap-2 text-xs text-gray-600 mt-1">
+            <CloudSun size={14} className="text-emerald-500" /> {weather.condition} ● {weather.temp}°C
           </div>
         </div>
       </header>
@@ -125,95 +112,119 @@ const Dashboard = () => {
       {/* BENTO GRID */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-7xl mx-auto">
         
-        {/* 1. HABIT SNAPSHOT */}
-        <div className="bg-[#141414] border border-gray-800 p-6 rounded-3xl flex flex-col items-center justify-center text-center">
-          <span className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-6 w-full text-left">Habit Snapshot</span>
-          <div className="relative w-32 h-32 flex items-center justify-center mb-6">
+        {/* 1. PROGRESS MONITOR */}
+        <div className="bg-[#111] border border-gray-800/50 p-8 rounded-[2.5rem] flex flex-col items-center relative overflow-hidden group">
+          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-emerald-500/20 to-transparent"></div>
+          <span className="text-[10px] font-bold text-gray-600 uppercase tracking-[0.2em] mb-8 w-full text-left">Activity Monitor</span>
+          
+          <div className="relative w-40 h-40 flex items-center justify-center mb-8">
             <svg className="w-full h-full transform -rotate-90">
-              <circle cx="64" cy="64" r={radius} stroke="currentColor" strokeWidth="8" fill="transparent" className="text-gray-800" />
+              <circle cx="80" cy="80" r={radius} stroke="currentColor" strokeWidth="6" fill="transparent" className="text-gray-900" />
               <circle 
-                cx="64" cy="64" r={radius} 
-                stroke="currentColor" strokeWidth="8" fill="transparent" 
+                cx="80" cy="80" r={radius} 
+                stroke="currentColor" strokeWidth="6" fill="transparent" 
                 strokeDasharray={circumference} 
-                style={{ strokeDashoffset: offset, transition: 'stroke-dashoffset 0.8s ease-in-out' }}
-                className="text-emerald-500" 
+                style={{ strokeDashoffset: habitStats.loading ? circumference : offset, transition: 'stroke-dashoffset 1.5s cubic-bezier(0.4, 0, 0.2, 1)' }}
+                className="text-emerald-500 drop-shadow-[0_0_8px_rgba(16,185,129,0.4)]" 
               />
             </svg>
             <div className="absolute inset-0 flex flex-col items-center justify-center">
-              <span className="text-3xl font-bold">{habitStats.percent}%</span>
-              <span className="text-xs text-gray-500">{habitStats.done}/{habitStats.total}</span>
+              {habitStats.loading ? <Loader2 className="animate-spin text-gray-700" /> : (
+                <>
+                  <span className="text-4xl font-bold text-white">{habitStats.percent}%</span>
+                  <span className="text-[10px] text-gray-500 font-bold uppercase mt-1">Productivity</span>
+                </>
+              )}
             </div>
           </div>
-          <p className="text-sm font-medium mb-1">Today's Focus:</p>
-          <p className="text-sm text-gray-400 mb-4">{habitStats.percent === 100 ? "Goal Reached!" : "Keep the chain."}</p>
-          <a href="/habits" className="text-xs text-emerald-500 hover:underline flex items-center gap-1">
-            Manage Habits <ExternalLink size={12} />
-          </a>
+          
+          <div className="flex justify-between w-full px-2">
+            <div className="text-left">
+              <p className="text-[10px] text-gray-600 uppercase font-bold tracking-tighter">Completed</p>
+              <p className="text-lg font-semibold text-white">{habitStats.done} Tasks</p>
+            </div>
+            <div className="text-right">
+              <p className="text-[10px] text-gray-600 uppercase font-bold tracking-tighter">Total Scope</p>
+              <p className="text-lg font-semibold text-white">{habitStats.total} Habits</p>
+            </div>
+          </div>
+
+          <Link href="/habits" className="mt-8 text-[10px] bg-emerald-500/5 hover:bg-emerald-500/10 text-emerald-500 px-4 py-2 rounded-full border border-emerald-500/20 transition-all flex items-center gap-2">
+            UPDATE LOGS <ExternalLink size={10} />
+          </Link>
         </div>
 
-        {/* 2. LAUNCHPAD */}
+        {/* 2. LAUNCHPAD & TIMER */}
         <div className="md:col-span-2 space-y-6">
-          <div className="bg-[#141414] border border-gray-800 p-6 rounded-3xl">
-            <span className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-6 block">Launchpad</span>
-            <div className="flex gap-6">
-              <a href="https://github.com" target="_blank" className="p-4 bg-[#1a1a1a] rounded-full border border-gray-700 hover:border-emerald-500 text-gray-400 hover:text-emerald-500 transition-all"><Github size={24} /></a>
-              <a href="https://vercel.com" target="_blank" className="p-4 bg-[#1a1a1a] rounded-full border border-gray-700 hover:border-emerald-500 text-gray-400 hover:text-emerald-500 transition-all"><Triangle size={24} className="fill-current" /></a>
-              <a href="https://youtube.com" target="_blank" className="p-4 bg-[#1a1a1a] rounded-full border border-gray-700 hover:border-emerald-500 text-gray-400 hover:text-emerald-500 transition-all"><Youtube size={24} /></a>
-              <a href="https://chatgpt.com" target="_blank" className="p-4 bg-[#1a1a1a] rounded-full border border-gray-700 hover:border-emerald-500 text-gray-400 hover:text-emerald-500 transition-all"><MessageSquare size={24} /></a>
+          <div className="bg-[#111] border border-gray-800/50 p-8 rounded-[2.5rem]">
+            <span className="text-[10px] font-bold text-gray-600 uppercase tracking-[0.2em] mb-6 block">Quick Launch</span>
+            <div className="flex flex-wrap gap-4">
+              {[
+                { icon: <Github size={22} />, link: "https://github.com" },
+                { icon: <Triangle size={22} className="fill-current" />, link: "https://vercel.com" },
+                { icon: <Youtube size={22} />, link: "https://youtube.com" },
+                { icon: <MessageSquare size={22} />, link: "https://chatgpt.com" }
+              ].map((item, i) => (
+                <a key={i} href={item.link} target="_blank" className="p-5 bg-[#181818] rounded-2xl border border-gray-800 hover:border-emerald-500/50 text-gray-400 hover:text-emerald-500 transition-all hover:-translate-y-1">
+                  {item.icon}
+                </a>
+              ))}
             </div>
           </div>
 
-          {/* 3. STUDY CLOCK */}
-          <div className="bg-[#141414] border border-gray-800 p-6 rounded-3xl">
-            <div className="flex justify-between items-center mb-4">
-              <span className="text-xs font-bold text-gray-500 uppercase tracking-widest">Study Clock</span>
-              <span className="text-[10px] text-gray-600 flex items-center gap-1">● POMODORO MODE</span>
+          <div className="bg-[#111] border border-gray-800/50 p-8 rounded-[2.5rem] flex flex-col md:flex-row items-center justify-between gap-8">
+            <div>
+              <span className="text-[10px] font-bold text-gray-600 uppercase tracking-[0.2em] mb-2 block font-mono">Focus Engine</span>
+              <div className="text-7xl font-bold tracking-tighter tabular-nums text-white">{formatTimer(timeLeft)}</div>
             </div>
-            <div className="flex items-center gap-8">
-              <div className="text-7xl font-light tracking-tighter tabular-nums">{formatTime(timeLeft)}</div>
-              <div className="flex gap-3">
-                <button onClick={() => setIsActive(!isActive)} className="p-3 bg-emerald-500/10 text-emerald-500 rounded-xl hover:bg-emerald-500/20 transition">
-                  {isActive ? <Pause size={20} /> : <Play size={20} />}
-                </button>
-                <button onClick={() => {setIsActive(false); setTimeLeft(25*60)}} className="p-3 bg-gray-800 text-gray-400 rounded-xl hover:bg-gray-700 transition">
-                  <RotateCcw size={20} />
-                </button>
-              </div>
+            <div className="flex gap-4">
+              <button onClick={() => setIsActive(!isActive)} className={`p-6 rounded-2xl transition-all ${isActive ? 'bg-orange-500/10 text-orange-500 border border-orange-500/20' : 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 hover:bg-emerald-500/20'}`}>
+                {isActive ? <Pause size={28} fill="currentColor" /> : <Play size={28} fill="currentColor" />}
+              </button>
+              <button onClick={() => {setIsActive(false); setTimeLeft(25*60)}} className="p-6 bg-gray-800/30 text-gray-400 rounded-2xl border border-gray-800 hover:bg-gray-800 transition-all">
+                <RotateCcw size={28} />
+              </button>
             </div>
           </div>
         </div>
 
-        {/* 4. SCRATCHPAD (Now Auto-saves) */}
-        <div className="bg-[#141414] border border-gray-800 p-6 rounded-3xl">
-          <span className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-4 block">Scratchpad</span>
+        {/* 3. SCRATCHPAD (Auto-saves) */}
+        <div className="bg-[#111] border border-gray-800/50 p-8 rounded-[2.5rem]">
+          <span className="text-[10px] font-bold text-gray-600 uppercase tracking-[0.2em] mb-6 block">Encrypted Scratchpad</span>
           <textarea 
             value={note}
             onChange={handleNoteChange}
-            placeholder="Type an idea, auto-saves..."
-            className="w-full h-44 bg-[#1a1a1a] border border-gray-800 rounded-xl p-3 text-sm focus:outline-none focus:border-emerald-500 transition resize-none"
+            placeholder="Capture an idea..."
+            className="w-full h-48 bg-[#0a0a0a] border border-gray-800 rounded-2xl p-5 text-sm focus:outline-none focus:border-emerald-500/30 transition-all resize-none text-gray-300 placeholder:text-gray-800"
           />
         </div>
 
-        {/* 5. TO-DO SNAPSHOT (Static Placeholder) */}
-        <div className="md:col-span-2 bg-[#141414] border border-gray-800 p-6 rounded-3xl">
-          <span className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-4 block">Priority Tasks</span>
-          <div className="space-y-3">
-            <div className="flex items-center gap-3 text-gray-400 group">
-              <CheckCircle size={18} className="text-emerald-500/40" />
-              <span className="text-sm">Finish Delvyn Labs Dashboard Logic</span>
-            </div>
-            <div className="flex items-center gap-3 text-gray-300 group">
-              <div className="w-[18px] h-[18px] border border-gray-700 rounded-full" />
-              <span className="text-sm">Scale the Habit Tracker UI</span>
-            </div>
+        {/* 4. RECENT ACTIVITY (Shows Cloud Status) */}
+        <div className="md:col-span-2 bg-[#111] border border-gray-800/50 p-8 rounded-[2.5rem]">
+          <div className="flex justify-between items-center mb-6">
+            <span className="text-[10px] font-bold text-gray-600 uppercase tracking-[0.2em]">Operational Status</span>
+            <span className="flex items-center gap-2 text-[10px] text-emerald-500 font-mono">
+              <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" /> CLOUD SYNC ACTIVE
+            </span>
           </div>
-          <button className="mt-8 text-[10px] text-gray-600 hover:text-white uppercase tracking-widest transition">View Full List</button>
+          <div className="space-y-4">
+            {habitStats.done === habitStats.total && habitStats.total !== 0 ? (
+              <div className="text-emerald-500 text-sm font-medium italic">All systems clear. 100% Habit efficiency reached.</div>
+            ) : (
+              <div className="flex items-center gap-4 text-gray-400">
+                <CheckCircle size={20} className="text-emerald-500/20" />
+                <span className="text-sm font-medium">Next Milestone: Reach {(habitStats.percent + 10).toString().slice(0,2)}% completion</span>
+              </div>
+            )}
+            <div className="h-[1px] bg-gray-900 w-full my-4" />
+            <p className="text-xs text-gray-600 italic">"Discipline is the bridge between goals and accomplishment."</p>
+          </div>
         </div>
 
       </div>
 
-      <footer className="mt-12 text-center text-[10px] text-gray-800 uppercase tracking-[0.3em]">
-        © Charan, Delvyn Labs. Private Workspace.
+      <footer className="mt-20 text-center text-[10px] text-gray-800 uppercase tracking-[0.5em] font-mono">
+        DEVLN-LABS // BENGALURU NODE // {new Date().getFullYear()}
       </footer>
     </div>
   );

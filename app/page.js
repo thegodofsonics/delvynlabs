@@ -77,17 +77,7 @@ const Dashboard = () => {
     return () => clearInterval(interval);
   }, [isActive, timeLeft]);
 
-  // 4. Scratchpad Persistence
-  useEffect(() => {
-    const saved = localStorage.getItem('delvyn-note');
-    if (saved) setNote(saved);
-  }, []);
-
-  const handleNoteChange = (e) => {
-    setNote(e.target.value);
-    localStorage.setItem('delvyn-note', e.target.value);
-  };
-
+  
   // Formatting
   const timeString = time.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
   const dateString = time.toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
@@ -195,7 +185,7 @@ const Dashboard = () => {
           </div>
         </div>
 
-        // 3. The JSX for the Widget
+        {/* 3. The JSX for the Widget */}
         <div className="bg-[#111] border border-gray-800/50 p-8 rounded-[2.5rem] flex flex-col">
           <div className="flex justify-between items-center mb-6">
             <span className="text-[10px] font-bold text-gray-600 uppercase tracking-[0.2em]">Latest Research</span>

@@ -17,9 +17,22 @@ import {
 const Dashboard = () => {
   // --- 1. Live Time & Greeting Logic ---
   const [time, setTime] = useState(new Date());
+  const [weather, setWeather] = useState({ temp: "--", condition: "BENGALURU" });
 
   useEffect(() => {
     const timer = setInterval(() => setTime(new Date()), 1000);
+    
+    // Fetch real weather for Bengaluru
+    fetch("https://api.open-meteo.com/v1/forecast?latitude=12.9716&longitude=77.5946&current_weather=true")
+      .then(res => res.json())
+      .then(data => {
+        setWeather({
+          temp: Math.round(data.current_weather.temperature),
+          condition: "BENGALURU"
+        });
+      })
+      .catch(() => setWeather({ temp: "24", condition: "BENGALURU" }));
+
     return () => clearInterval(timer);
   }, []);
 
@@ -31,8 +44,7 @@ const Dashboard = () => {
   // --- 2. Shared Habit Logic (Syncing with /habits) ---
   const [habitStats, setHabitStats] = useState({ percent: 0, done: 0, total: 0 });
 
-  useEffect(() => {
-    // We read the same key ('habits') that your habit tracker uses
+  const updateHabits = () => {
     const saved = localStorage.getItem('habits');
     if (saved) {
       const list = JSON.parse(saved);
@@ -41,6 +53,13 @@ const Dashboard = () => {
       const percent = total > 0 ? Math.round((done / total) * 100) : 0;
       setHabitStats({ percent, done, total });
     }
+  };
+
+  useEffect(() => {
+    updateHabits();
+    // Listen for changes from the habits page
+    window.addEventListener('storage', updateHabits);
+    return () => window.removeEventListener('storage', updateHabits);
   }, []);
 
   // --- 3. Study Clock Logic ---
@@ -53,8 +72,9 @@ const Dashboard = () => {
       interval = setInterval(() => {
         setTimeLeft((prev) => prev - 1);
       }, 1000);
-    } else {
-      clearInterval(interval);
+    } else if (timeLeft === 0) {
+      setIsActive(false);
+      alert("Time's up! Take a break.");
     }
     return () => clearInterval(interval);
   }, [isActive, timeLeft]);
@@ -65,14 +85,19 @@ const Dashboard = () => {
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  // --- 4. To-Do State ---
-  const [todos, setTodos] = useState([
-    { id: 1, text: "Review Delvyn Labs PR", completed: true },
-    { id: 2, text: "Complete Habit Tracker logic", completed: true },
-    { id: 3, text: "Sketch Note widget UI", completed: false },
-  ]);
+  // --- 4. Smart Scratchpad Logic ---
+  const [note, setNote] = useState("");
+  useEffect(() => {
+    const savedNote = localStorage.getItem('delvyn-note');
+    if (savedNote) setNote(savedNote);
+  }, []);
 
-  // Math for the Habit Circle (SVG)
+  const handleNoteChange = (e) => {
+    setNote(e.target.value);
+    localStorage.setItem('delvyn-note', e.target.value);
+  };
+
+  // SVG Progress Math
   const radius = 58;
   const circumference = 2 * Math.PI * radius;
   const offset = circumference - (habitStats.percent / 100) * circumference;
@@ -90,7 +115,9 @@ const Dashboard = () => {
             <span>|</span>
             <span>{timeString}</span>
             <span>|</span>
-            <span className="flex items-center gap-1"><CloudSun size={14} /> BENGALURU 24°C</span>
+            <span className="flex items-center gap-1 text-emerald-500/80">
+              <CloudSun size={14} /> {weather.condition} {weather.temp}°C
+            </span>
           </div>
         </div>
       </header>
@@ -98,7 +125,7 @@ const Dashboard = () => {
       {/* BENTO GRID */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-7xl mx-auto">
         
-        {/* 1. HABIT SNAPSHOT (Now Dynamic!) */}
+        {/* 1. HABIT SNAPSHOT */}
         <div className="bg-[#141414] border border-gray-800 p-6 rounded-3xl flex flex-col items-center justify-center text-center">
           <span className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-6 w-full text-left">Habit Snapshot</span>
           <div className="relative w-32 h-32 flex items-center justify-center mb-6">
@@ -108,7 +135,7 @@ const Dashboard = () => {
                 cx="64" cy="64" r={radius} 
                 stroke="currentColor" strokeWidth="8" fill="transparent" 
                 strokeDasharray={circumference} 
-                style={{ strokeDashoffset: offset, transition: 'stroke-dashoffset 0.5s ease' }}
+                style={{ strokeDashoffset: offset, transition: 'stroke-dashoffset 0.8s ease-in-out' }}
                 className="text-emerald-500" 
               />
             </svg>
@@ -120,7 +147,7 @@ const Dashboard = () => {
           <p className="text-sm font-medium mb-1">Today's Focus:</p>
           <p className="text-sm text-gray-400 mb-4">{habitStats.percent === 100 ? "Goal Reached!" : "Keep the chain."}</p>
           <a href="/habits" className="text-xs text-emerald-500 hover:underline flex items-center gap-1">
-            Link to /habits <ExternalLink size={12} />
+            Manage Habits <ExternalLink size={12} />
           </a>
         </div>
 
@@ -129,10 +156,10 @@ const Dashboard = () => {
           <div className="bg-[#141414] border border-gray-800 p-6 rounded-3xl">
             <span className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-6 block">Launchpad</span>
             <div className="flex gap-6">
-              <a href="https://github.com" target="_blank" className="p-4 bg-[#1a1a1a] rounded-full border border-gray-700 hover:border-emerald-500 transition cursor-pointer text-gray-300 hover:text-emerald-500"><Github size={24} /></a>
-              <a href="https://vercel.com" target="_blank" className="p-4 bg-[#1a1a1a] rounded-full border border-gray-700 hover:border-emerald-500 transition cursor-pointer text-gray-300 hover:text-emerald-500"><Triangle size={24} className="fill-current" /></a>
-              <a href="https://youtube.com" target="_blank" className="p-4 bg-[#1a1a1a] rounded-full border border-gray-700 hover:border-emerald-500 transition cursor-pointer text-gray-300 hover:text-emerald-500"><Youtube size={24} /></a>
-              <a href="https://chat.openai.com" target="_blank" className="p-4 bg-[#1a1a1a] rounded-full border border-gray-700 hover:border-emerald-500 transition cursor-pointer text-gray-300 hover:text-emerald-500"><MessageSquare size={24} /></a>
+              <a href="https://github.com" target="_blank" className="p-4 bg-[#1a1a1a] rounded-full border border-gray-700 hover:border-emerald-500 text-gray-400 hover:text-emerald-500 transition-all"><Github size={24} /></a>
+              <a href="https://vercel.com" target="_blank" className="p-4 bg-[#1a1a1a] rounded-full border border-gray-700 hover:border-emerald-500 text-gray-400 hover:text-emerald-500 transition-all"><Triangle size={24} className="fill-current" /></a>
+              <a href="https://youtube.com" target="_blank" className="p-4 bg-[#1a1a1a] rounded-full border border-gray-700 hover:border-emerald-500 text-gray-400 hover:text-emerald-500 transition-all"><Youtube size={24} /></a>
+              <a href="https://chatgpt.com" target="_blank" className="p-4 bg-[#1a1a1a] rounded-full border border-gray-700 hover:border-emerald-500 text-gray-400 hover:text-emerald-500 transition-all"><MessageSquare size={24} /></a>
             </div>
           </div>
 
@@ -143,7 +170,7 @@ const Dashboard = () => {
               <span className="text-[10px] text-gray-600 flex items-center gap-1">● POMODORO MODE</span>
             </div>
             <div className="flex items-center gap-8">
-              <div className="text-7xl font-light tracking-tighter">{formatTime(timeLeft)}</div>
+              <div className="text-7xl font-light tracking-tighter tabular-nums">{formatTime(timeLeft)}</div>
               <div className="flex gap-3">
                 <button onClick={() => setIsActive(!isActive)} className="p-3 bg-emerald-500/10 text-emerald-500 rounded-xl hover:bg-emerald-500/20 transition">
                   {isActive ? <Pause size={20} /> : <Play size={20} />}
@@ -156,39 +183,37 @@ const Dashboard = () => {
           </div>
         </div>
 
-        {/* 4. SCRATCHPAD */}
+        {/* 4. SCRATCHPAD (Now Auto-saves) */}
         <div className="bg-[#141414] border border-gray-800 p-6 rounded-3xl">
           <span className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-4 block">Scratchpad</span>
           <textarea 
+            value={note}
+            onChange={handleNoteChange}
             placeholder="Type an idea, auto-saves..."
-            className="w-full h-32 bg-[#1a1a1a] border border-gray-800 rounded-xl p-3 text-sm focus:outline-none focus:border-emerald-500 transition resize-none mb-3"
+            className="w-full h-44 bg-[#1a1a1a] border border-gray-800 rounded-xl p-3 text-sm focus:outline-none focus:border-emerald-500 transition resize-none"
           />
-          <button className="w-full py-2 bg-emerald-600 text-white rounded-lg text-sm font-medium hover:bg-emerald-500 transition">
-            Add
-          </button>
         </div>
 
-        {/* 5. TO-DO SNAPSHOT */}
+        {/* 5. TO-DO SNAPSHOT (Static Placeholder) */}
         <div className="md:col-span-2 bg-[#141414] border border-gray-800 p-6 rounded-3xl">
-          <span className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-4 block">To-Do Snapshot</span>
-          <p className="text-[10px] text-gray-500 mb-4 uppercase">High Priority ({todos.filter(t => !t.completed).length})</p>
+          <span className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-4 block">Priority Tasks</span>
           <div className="space-y-3">
-            {todos.map(todo => (
-              <div key={todo.id} className="flex items-center gap-3 group cursor-pointer">
-                <div className={`p-1 rounded ${todo.completed ? 'text-emerald-500' : 'text-gray-600 group-hover:text-gray-400'}`}>
-                  <CheckCircle size={18} fill={todo.completed ? "currentColor" : "none"} className={todo.completed ? "text-emerald-500/20 stroke-emerald-500" : ""} />
-                </div>
-                <span className={`text-sm ${todo.completed ? 'text-gray-600 line-through' : 'text-gray-300'}`}>{todo.text}</span>
-              </div>
-            ))}
+            <div className="flex items-center gap-3 text-gray-400 group">
+              <CheckCircle size={18} className="text-emerald-500/40" />
+              <span className="text-sm">Finish Delvyn Labs Dashboard Logic</span>
+            </div>
+            <div className="flex items-center gap-3 text-gray-300 group">
+              <div className="w-[18px] h-[18px] border border-gray-700 rounded-full" />
+              <span className="text-sm">Scale the Habit Tracker UI</span>
+            </div>
           </div>
-          <button className="mt-6 text-xs text-gray-500 hover:text-white transition">View All Tasks</button>
+          <button className="mt-8 text-[10px] text-gray-600 hover:text-white uppercase tracking-widest transition">View Full List</button>
         </div>
 
       </div>
 
-      <footer className="mt-12 text-center text-[10px] text-gray-700 uppercase tracking-widest">
-        © Charan, Delvyn Labs. Private Workspace. Authorized Access Only.
+      <footer className="mt-12 text-center text-[10px] text-gray-800 uppercase tracking-[0.3em]">
+        © Charan, Delvyn Labs. Private Workspace.
       </footer>
     </div>
   );

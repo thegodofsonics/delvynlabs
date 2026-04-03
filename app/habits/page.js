@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { Trash2, Check, ArrowLeft, Loader2 } from 'lucide-react';
 import Link from 'next/link';
-import { supabase } from '@/lib/supabase'; // Make sure this path is correct!
+import { supabase } from '../../lib/supabase'; // Make sure this path is correct!
 
 export default function HabitTracker() {
   const [habits, setHabits] = useState([]);

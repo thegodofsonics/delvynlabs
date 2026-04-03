@@ -24,6 +24,7 @@ const Dashboard = () => {
   const [timeLeft, setTimeLeft] = useState(25 * 60);
   const [isActive, setIsActive] = useState(false);
   const [note, setNote] = useState("");
+  const [latestNote, setLatestNote] = useState({ title: '', content: '', id: null });
 
   // 1. Live Clock & Weather
   useEffect(() => {
@@ -58,6 +59,12 @@ const Dashboard = () => {
       window.removeEventListener('focus', fetchCloudStats);
     };
   }, []);
+
+  useEffect(() => { fetchLatestNote(); }, []);
+    const fetchLatestNote = async () => {
+    const { data } = await supabase.from('notes').select('*').order('updated_at', { ascending: false }).limit(1);
+    if (data && data[0]) setLatestNote(data[0]);
+  };
 
   // 3. Timer Logic
   useEffect(() => {
@@ -188,16 +195,27 @@ const Dashboard = () => {
           </div>
         </div>
 
-        {/* 3. SCRATCHPAD (Auto-saves) */}
-        <div className="bg-[#111] border border-gray-800/50 p-8 rounded-[2.5rem]">
-          <span className="text-[10px] font-bold text-gray-600 uppercase tracking-[0.2em] mb-6 block">Encrypted Scratchpad</span>
+        // 3. The JSX for the Widget
+        <div className="bg-[#111] border border-gray-800/50 p-8 rounded-[2.5rem] flex flex-col">
+          <div className="flex justify-between items-center mb-6">
+            <span className="text-[10px] font-bold text-gray-600 uppercase tracking-[0.2em]">Latest Research</span>
+            <Link href="/notes" className="text-emerald-500 hover:underline text-[10px] font-bold uppercase tracking-widest">Full Log</Link>
+          </div>
+          
+          <h3 className="text-white font-bold mb-2 truncate">{latestNote.title || "No notes yet"}</h3>
           <textarea 
-            value={note}
-            onChange={handleNoteChange}
-            placeholder="Capture an idea..."
-            className="w-full h-48 bg-[#0a0a0a] border border-gray-800 rounded-2xl p-5 text-sm focus:outline-none focus:border-emerald-500/30 transition-all resize-none text-gray-300 placeholder:text-gray-800"
+            value={latestNote.content}
+            onChange={async (e) => {
+              const newContent = e.target.value;
+              setLatestNote({...latestNote, content: newContent});
+              if(latestNote.id) {
+                await supabase.from('notes').update({ content: newContent, updated_at: new Date() }).eq('id', latestNote.id);
+              }
+            }}
+            className="flex-1 bg-[#0a0a0a] border border-gray-800/50 rounded-2xl p-5 text-sm focus:outline-none focus:border-emerald-500/30 transition-all resize-none text-gray-400"
+            placeholder="Write something..."
           />
-        </div>
+        </div>    
 
         {/* 4. RECENT ACTIVITY (Shows Cloud Status) */}
         <div className="md:col-span-2 bg-[#111] border border-gray-800/50 p-8 rounded-[2.5rem]">

@@ -17,7 +17,6 @@ export default function HabitTracker() {
       const { data, error } = await supabase
         .from('habits')
         .select('*')
-        .order('created_at', { ascending: true });
 
       if (error) throw error;
       setHabits(data || []);

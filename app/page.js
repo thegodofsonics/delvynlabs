@@ -1,15 +1,12 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-// ... rest of your imports
-// import React, { useState, useEffect } from 'react';
 import { 
   CheckCircle, 
   ExternalLink, 
   Play, 
   Pause, 
   RotateCcw, 
-  Plus, 
   CloudSun, 
   Github, 
   Youtube, 
@@ -18,7 +15,35 @@ import {
 } from 'lucide-react';
 
 const Dashboard = () => {
-  // --- Study Clock Logic ---
+  // --- 1. Live Time & Greeting Logic ---
+  const [time, setTime] = useState(new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => setTime(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const hours = time.getHours();
+  const greeting = hours < 12 ? "Good morning" : hours < 18 ? "Good afternoon" : "Good evening";
+  const timeString = time.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
+  const dateString = time.toLocaleDateString('en-IN', { weekday: 'short', day: '2-digit', month: 'short' });
+
+  // --- 2. Shared Habit Logic (Syncing with /habits) ---
+  const [habitStats, setHabitStats] = useState({ percent: 0, done: 0, total: 0 });
+
+  useEffect(() => {
+    // We read the same key ('habits') that your habit tracker uses
+    const saved = localStorage.getItem('habits');
+    if (saved) {
+      const list = JSON.parse(saved);
+      const done = list.filter(h => h.done).length;
+      const total = list.length;
+      const percent = total > 0 ? Math.round((done / total) * 100) : 0;
+      setHabitStats({ percent, done, total });
+    }
+  }, []);
+
+  // --- 3. Study Clock Logic ---
   const [timeLeft, setTimeLeft] = useState(25 * 60);
   const [isActive, setIsActive] = useState(false);
 
@@ -40,12 +65,17 @@ const Dashboard = () => {
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  // --- To-Do State ---
+  // --- 4. To-Do State ---
   const [todos, setTodos] = useState([
     { id: 1, text: "Review Delvyn Labs PR", completed: true },
     { id: 2, text: "Complete Habit Tracker logic", completed: true },
     { id: 3, text: "Sketch Note widget UI", completed: false },
   ]);
+
+  // Math for the Habit Circle (SVG)
+  const radius = 58;
+  const circumference = 2 * Math.PI * radius;
+  const offset = circumference - (habitStats.percent / 100) * circumference;
 
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-gray-100 p-6 md:p-12 font-sans">
@@ -54,11 +84,11 @@ const Dashboard = () => {
       <header className="mb-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-widest text-gray-400 mb-2">DELVYN LABS</h1>
-          <h2 className="text-4xl font-semibold">Hi Charan, good afternoon.</h2>
+          <h2 className="text-4xl font-semibold capitalize">Hi Charan, {greeting}.</h2>
           <div className="flex items-center gap-4 mt-2 text-sm text-gray-500 font-mono">
-            <span>THU 02 APR</span>
+            <span className="uppercase">{dateString}</span>
             <span>|</span>
-            <span>15:45 GMT</span>
+            <span>{timeString}</span>
             <span>|</span>
             <span className="flex items-center gap-1"><CloudSun size={14} /> BENGALURU 24°C</span>
           </div>
@@ -66,24 +96,29 @@ const Dashboard = () => {
       </header>
 
       {/* BENTO GRID */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-7xl">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-7xl mx-auto">
         
-        {/* 1. HABIT SNAPSHOT */}
+        {/* 1. HABIT SNAPSHOT (Now Dynamic!) */}
         <div className="bg-[#141414] border border-gray-800 p-6 rounded-3xl flex flex-col items-center justify-center text-center">
           <span className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-6 w-full text-left">Habit Snapshot</span>
           <div className="relative w-32 h-32 flex items-center justify-center mb-6">
             <svg className="w-full h-full transform -rotate-90">
-              <circle cx="64" cy="64" r="58" stroke="currentColor" strokeWidth="8" fill="transparent" className="text-gray-800" />
-              <circle cx="64" cy="64" r="58" stroke="currentColor" strokeWidth="8" fill="transparent" 
-                strokeDasharray={364.4} strokeDashoffset={364.4 * 0.25} className="text-emerald-500" />
+              <circle cx="64" cy="64" r={radius} stroke="currentColor" strokeWidth="8" fill="transparent" className="text-gray-800" />
+              <circle 
+                cx="64" cy="64" r={radius} 
+                stroke="currentColor" strokeWidth="8" fill="transparent" 
+                strokeDasharray={circumference} 
+                style={{ strokeDashoffset: offset, transition: 'stroke-dashoffset 0.5s ease' }}
+                className="text-emerald-500" 
+              />
             </svg>
             <div className="absolute inset-0 flex flex-col items-center justify-center">
-              <span className="text-3xl font-bold">75%</span>
-              <span className="text-xs text-gray-500">4/5</span>
+              <span className="text-3xl font-bold">{habitStats.percent}%</span>
+              <span className="text-xs text-gray-500">{habitStats.done}/{habitStats.total}</span>
             </div>
           </div>
           <p className="text-sm font-medium mb-1">Today's Focus:</p>
-          <p className="text-sm text-gray-400 mb-4">Keep the chain.</p>
+          <p className="text-sm text-gray-400 mb-4">{habitStats.percent === 100 ? "Goal Reached!" : "Keep the chain."}</p>
           <a href="/habits" className="text-xs text-emerald-500 hover:underline flex items-center gap-1">
             Link to /habits <ExternalLink size={12} />
           </a>
@@ -94,10 +129,10 @@ const Dashboard = () => {
           <div className="bg-[#141414] border border-gray-800 p-6 rounded-3xl">
             <span className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-6 block">Launchpad</span>
             <div className="flex gap-6">
-              <div className="p-4 bg-[#1a1a1a] rounded-full border border-gray-700 hover:border-emerald-500 transition cursor-pointer"><Github size={24} /></div>
-              <div className="p-4 bg-[#1a1a1a] rounded-full border border-gray-700 hover:border-emerald-500 transition cursor-pointer"><Triangle size={24} className="fill-current" /></div>
-              <div className="p-4 bg-[#1a1a1a] rounded-full border border-gray-700 hover:border-emerald-500 transition cursor-pointer"><Youtube size={24} /></div>
-              <div className="p-4 bg-[#1a1a1a] rounded-full border border-gray-700 hover:border-emerald-500 transition cursor-pointer"><MessageSquare size={24} /></div>
+              <a href="https://github.com" target="_blank" className="p-4 bg-[#1a1a1a] rounded-full border border-gray-700 hover:border-emerald-500 transition cursor-pointer text-gray-300 hover:text-emerald-500"><Github size={24} /></a>
+              <a href="https://vercel.com" target="_blank" className="p-4 bg-[#1a1a1a] rounded-full border border-gray-700 hover:border-emerald-500 transition cursor-pointer text-gray-300 hover:text-emerald-500"><Triangle size={24} className="fill-current" /></a>
+              <a href="https://youtube.com" target="_blank" className="p-4 bg-[#1a1a1a] rounded-full border border-gray-700 hover:border-emerald-500 transition cursor-pointer text-gray-300 hover:text-emerald-500"><Youtube size={24} /></a>
+              <a href="https://chat.openai.com" target="_blank" className="p-4 bg-[#1a1a1a] rounded-full border border-gray-700 hover:border-emerald-500 transition cursor-pointer text-gray-300 hover:text-emerald-500"><MessageSquare size={24} /></a>
             </div>
           </div>
 

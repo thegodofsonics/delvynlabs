@@ -1,3 +1,5 @@
+"use client";
+
 import { Layout, CheckSquare, StickyNote, Banknote, BookOpen, Settings } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';

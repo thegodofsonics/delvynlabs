@@ -15,49 +15,49 @@ export default function Sidebar() {
   const pathname = usePathname();
 
   const menuItems = [
-    { icon: <LayoutDashboard size={24} />, label: 'Dashboard', path: '/' },
-    { icon: <CheckSquare size={24} />, label: 'Habits', path: '/habits' },
-    { icon: <StickyNote size={24} />, label: 'Notes', path: '/notes' },
-    { icon: <Banknote size={24} />, label: 'Finance', path: '/finance' },
-    { icon: <BookOpen size={24} />, label: 'Library', path: '/library' },
+    { icon: <LayoutDashboard size={20} />, label: 'Dashboard', path: '/' },
+    { icon: <CheckSquare size={20} />, label: 'Habits', path: '/habits' },
+    { icon: <StickyNote size={20} />, label: 'Notes', path: '/notes' },
+    { icon: <Banknote size={20} />, label: 'Finance', path: '/finance' },
+    { icon: <BookOpen size={20} />, label: 'Library', path: '/library' },
   ];
 
   return (
     <nav 
-      style={{ width: '110px' }} 
-      className="fixed left-0 top-0 h-screen bg-[#080808] border-r border-white/5 flex flex-col items-center py-10 z-50 shadow-2xl"
+      style={{ width: '80px' }} 
+      className="fixed left-0 top-0 h-screen bg-[#050505] border-r border-white/5 flex flex-col items-center py-10 z-50"
     >
       
-      {/* LOGO */}
+      {/* LOGO - Small & Sharp */}
       <div className="mb-14">
-        <div className="w-12 h-12 border border-emerald-500/30 rounded-2xl flex items-center justify-center bg-emerald-500/5">
-          <span className="text-emerald-500 font-bold text-sm tracking-tighter">DL</span>
+        <div className="w-9 h-9 border border-emerald-500/20 rounded-lg flex items-center justify-center bg-emerald-500/5">
+          <span className="text-emerald-500 font-bold text-[10px] tracking-tighter">DL</span>
         </div>
       </div>
       
-      {/* NAVIGATION */}
-      <div className="flex-1 flex flex-col items-center gap-8 w-full">
+      {/* NAVIGATION - Tighter Gaps */}
+      <div className="flex-1 flex flex-col items-center gap-4 w-full">
         {menuItems.map((item) => {
           const isActive = pathname === item.path;
           return (
             <Link 
               key={item.path} 
               href={item.path}
-              className={`group relative w-14 h-14 rounded-2xl flex items-center justify-center transition-all duration-300 ${
+              className={`group relative w-11 h-11 rounded-xl flex items-center justify-center transition-all duration-300 ${
                 isActive 
-                ? 'bg-emerald-500/10 text-emerald-500 shadow-[0_0_20px_rgba(16,185,129,0.1)]' 
+                ? 'text-emerald-500 bg-emerald-500/10' 
                 : 'text-gray-600 hover:text-gray-300 hover:bg-white/5'
               }`}
             >
               {item.icon}
               
-              {/* ACTIVE INDICATOR - Fixed to the very edge */}
+              {/* ACTIVE ACCENT - Minimalist Line */}
               {isActive && (
-                <div className="absolute left-0 w-1 h-8 bg-emerald-500 rounded-r-full shadow-[2px_0_10px_rgba(16,185,129,0.4)]" />
+                <div className="absolute left-0 w-[2px] h-4 bg-emerald-500 rounded-r-full shadow-[2px_0_10px_rgba(16,185,129,0.3)]" />
               )}
 
-              {/* TOOLTIP - Moved further right so it doesn't overlap */}
-              <div className="absolute left-[90px] px-3 py-1.5 bg-[#121212] border border-gray-800 text-gray-300 text-[10px] font-bold rounded-lg opacity-0 translate-x-[-10px] group-hover:opacity-100 group-hover:translate-x-0 transition-all pointer-events-none uppercase tracking-[0.15em] whitespace-nowrap z-[100] shadow-2xl">
+              {/* TOOLTIP - Elegant & Small */}
+              <div className="absolute left-16 px-2.5 py-1 bg-[#111] border border-gray-800 text-gray-400 text-[9px] font-bold rounded-md opacity-0 translate-x-[-5px] group-hover:opacity-100 group-hover:translate-x-0 transition-all pointer-events-none uppercase tracking-[0.2em] whitespace-nowrap z-50">
                 {item.label}
               </div>
             </Link>
@@ -66,9 +66,9 @@ export default function Sidebar() {
       </div>
 
       {/* SETTINGS */}
-      <div className="mt-auto mb-4 w-14 h-14 flex items-center justify-center text-gray-700 hover:text-emerald-500 transition-all cursor-pointer rounded-2xl hover:bg-white/5 group relative">
-        <Settings size={24} />
-        <div className="absolute left-[90px] px-3 py-1.5 bg-[#121212] border border-gray-800 text-gray-300 text-[10px] font-bold rounded-lg opacity-0 translate-x-[-10px] group-hover:opacity-100 group-hover:translate-x-0 transition-all pointer-events-none uppercase tracking-[0.15em] whitespace-nowrap z-[100]">
+      <div className="mt-auto mb-2 w-11 h-11 flex items-center justify-center text-gray-700 hover:text-emerald-500 transition-all cursor-pointer rounded-xl hover:bg-white/5 group relative">
+        <Settings size={20} />
+        <div className="absolute left-16 px-2.5 py-1 bg-[#111] border border-gray-800 text-gray-400 text-[9px] font-bold rounded-md opacity-0 translate-x-[-5px] group-hover:opacity-100 group-hover:translate-x-0 transition-all pointer-events-none uppercase tracking-[0.2em] whitespace-nowrap z-50">
           Settings
         </div>
       </div>
